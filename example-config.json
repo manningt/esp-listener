@@ -1,0 +1,23 @@
+{
+    "sleep": 30,
+    "i2s_pins": {
+        "sck": 25,
+        "sd": 26,
+        "wstrobe": 27,
+        "select": 14
+    },
+    "thold_cfg": {
+        "below_above": 0,
+        "threshold": 300,
+        "thold_count_limit": 3
+    },
+    "wifi": {
+        "ssid": "ssid",
+        "password": "pw"
+    },
+    "ftp": {
+        "host": "10.0.1.68",
+        "user": "user",
+        "password": "pw"
+    }
+}
