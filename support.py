@@ -2,7 +2,7 @@ import network
 from ftplib import FTP
 import machine
 import ujson as json
-import tinypico
+# import tinypico
 from time import sleep
 
 def setup_station(ssid, password):
@@ -51,7 +51,19 @@ def read_config(filename="config.json"):
       print(f"Error loading {filename}: {e}")
    return config
 
-def restore_state(rtc=machine.RTC()):
+def init_rtc_memory(rtc=machine.RTC()):
+   filename = "default_state.json"
+   try:
+      with open(filename, 'r') as f:
+         default_state = f.read()
+   except Exception as e:
+      print(f"Error loading {filename}: {e}")
+   rtc.memory(bytearray(default_state.encode()))
+
+def write_rtc_memory(state_dict, rtc=machine.RTC()):
+   rtc.memory(bytearray(json.dumps(state_dict).encode()))
+
+def restore_from_rtc_memory(rtc=machine.RTC()):
    tmp = None
    try:
       tmp = json.loads(rtc.memory().decode())
@@ -64,7 +76,7 @@ def restore_state(rtc=machine.RTC()):
    return tmp
 
 def get_bat_volt_int():
-   BAT_VOLTAGE_PIN = const(35)
+   BAT_VOLTAGE_PIN = const(35) # refer to tinypico.py definitions
    VOLTAGE_DIVIDER = 11 # 4096 max value divided by 370 reference voltage
    adc = machine.ADC(Machine.Pin(BAT_VOLTAGE_PIN))
    raw_adc_value = adc.read()
