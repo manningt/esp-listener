@@ -1,9 +1,10 @@
-import network
+import network, machine, sys
 from ftplib import FTP
-import machine
 import ujson as json
-# import tinypico
 from time import sleep
+import gc
+# print(sys.implementation._machine)
+# import tinypico
 
 def setup_station(ssid, password):
    sta_if = network.WLAN(network.STA_IF)
@@ -38,6 +39,17 @@ def setup_ftp(host, user, password):
    return ftp
 
 def my_deep_sleep(seconds):
+   # check for an input character to jump out of deep_sleep loop
+   # doesn't work because the UART is used by REPL
+   '''
+   uart = machine.UART(0, 115200)
+   for _ in range(5):
+      sleep(1)
+      if uart.any():  # Non-blocking check
+         data = uart.read()
+         if data:
+            sys.exit()
+   '''
    print(f"deep sleep for {seconds} seconds")
    sleep(1)
    machine.deepsleep(seconds * 1000)
@@ -50,15 +62,6 @@ def read_config(filename="config.json"):
    except Exception as e:
       print(f"Error loading {filename}: {e}")
    return config
-
-def init_rtc_memory(rtc=machine.RTC()):
-   filename = "default_state.json"
-   try:
-      with open(filename, 'r') as f:
-         default_state = f.read()
-   except Exception as e:
-      print(f"Error loading {filename}: {e}")
-   rtc.memory(bytearray(default_state.encode()))
 
 def write_rtc_memory(state_dict, rtc=machine.RTC()):
    rtc.memory(bytearray(json.dumps(state_dict).encode()))
@@ -81,6 +84,12 @@ def get_bat_volt_int():
    adc = machine.ADC(Machine.Pin(BAT_VOLTAGE_PIN))
    raw_adc_value = adc.read()
    return int(raw_adc_value / VOLTAGE_DIVIDER)
+
+def mem_status():
+   gc.collect()
+   mem_stats = gc.mem_alloc()
+   mem_free = gc.mem_free()
+   print(f"Mem bytes Free={mem_free} + Alloc={mem_stats} >> Total={mem_stats + mem_free}")
 
 '''
 def send_battery_voltage(host,voltage):

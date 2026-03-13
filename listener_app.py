@@ -1,5 +1,5 @@
-from support import write_rtc_memory, init_rtc_memory, restore_from_rtc_memory, \
-   read_config, my_deep_sleep, setup_station, setup_ftp
+from support import write_rtc_memory, restore_from_rtc_memory, \
+   read_config, my_deep_sleep, setup_station, setup_ftp, mem_status
 from machine import Pin, I2S
 import math
 
@@ -30,18 +30,20 @@ def main():
 
    count_state = restore_from_rtc_memory()
    if count_state is None:
-      init_rtc_memory()
-      count_state = restore_from_rtc_memory()
+      count_state = {"wake_count": 0, "thold_count": 0}
+      write_rtc_memory(count_state)
 
    config = read_config()
    if config is None:
       print("No config; calling deep sleep")
       my_deep_sleep(15)
 
+   if count_state["wake_count"] == 0:
+      print(f"{config=}")
+      mem_status()
+
    if 'sleep' not in config:
       config['sleep'] = 30
-
-   print(f"{config=}")
 
    if 'i2s_pins' in config:
       audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, \
