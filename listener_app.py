@@ -2,6 +2,7 @@ from support import write_rtc_memory, restore_from_rtc_memory, \
    read_config, my_deep_sleep, setup_station, setup_ftp, mem_status
 from machine import Pin, I2S
 import math
+import sys
 
 def calculate_rms(data, offset):
     sum_squares = 0.0
@@ -38,12 +39,22 @@ def main():
       print("No config; calling deep sleep")
       my_deep_sleep(15)
 
+   # print debug info on first wake:
    if count_state["wake_count"] == 0:
       print(f"{config=}")
       mem_status()
 
-   if 'sleep' not in config:
-      config['sleep'] = 30
+   if 'sampling' in config:
+      tmp = config['sampling']['sample_minutes']
+      if isinstance(tmp, float) or isinstance(tmp, int):
+         deep_sleep_seconds = int(60*tmp)
+      else:
+         print(f"Quitting: invalid sample_minutes={tmp}")
+         sys.exit(0)
+   else:
+      print("Quitting: Missing 'sampling' in config json file")
+      sys.exit(0)
+
 
    if 'i2s_pins' in config:
       audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, \
@@ -60,10 +71,10 @@ def main():
          print(f'RMS: {rms:.2f}')
 
          increment_thold_count = False
-         if config['thold_cfg']['below_above'] == 1:
-            if rms > config[thold_config]['threshold']:
+         if config['sampling']['below_above'] == 1:
+            if rms > config['sampling']['threshold']:
                increment_thold_count = True
-         elif rms < config['thold_cfg']['threshold']:
+         elif rms < config['sampling']['threshold']:
             increment_thold_count = True
 
          if increment_thold_count:
@@ -73,14 +84,22 @@ def main():
             
          count_state['wake_count'] +=1
          write_rtc_memory(count_state)
-
    else:
       print("No i2s config")
 
-   if count_state['thold_count'] > config['thold_cfg']['thold_count_limit']:
-      print(f"thold_count={count_state['thold_count']} > thold_limit={config['thold_cfg']['thold_count_limit']}")
+   if count_state['thold_count'] > config['sampling']['thold_count_limit']:
+      # report threshold exceeded, reset thold_count and set deep_sleep to report interval
+      print(f"thold_count={count_state['thold_count']} > thold_limit={config['sampling']['thold_count_limit']}")
+      count_state['thold_count'] = 0
+      tmp = config['sampling']['report_hours']
+      if isinstance(tmp, float) or isinstance(tmp, int):
+         deep_sleep_seconds = int(tmp*3600)
+      else:
+         print(f"Warning: invalid report_hours={tmp}; using 4 hours")
+         deep_sleep_seconds = 14400
+
       if "wifi" in config:
-         station = setup_station(config[wifi]['ssid'], config['wifi']['password'])
+         station = setup_station(config['wifi']['ssid'], config['wifi']['password'])
          if station is None:
             print("WiFi not connecting")
       else:
@@ -103,4 +122,4 @@ def main():
       else:
          print("no ftp config")
 
-   my_deep_sleep(config['sleep'])
+   my_deep_sleep(deep_sleep_seconds)

@@ -1,15 +1,16 @@
 {
-    "sleep": 30,
     "i2s_pins": {
         "sck": 25,
         "sd": 26,
         "wstrobe": 27,
         "select": 14
     },
-    "thold_cfg": {
+    "sampling": {
         "below_above": 0,
-        "threshold": 300,
-        "thold_count_limit": 3
+        "threshold": 4000,
+        "thold_count_limit": 3,
+        "sample_minutes": 0.5,
+        "report_hours": 12
     },
     "wifi": {
         "ssid": "ssid",
