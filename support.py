@@ -1,4 +1,4 @@
-import network, machine, sys
+import network, machine
 from ftplib import FTP
 import ujson as json
 from time import sleep
