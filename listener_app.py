@@ -27,15 +27,23 @@ def get_rms(audio_in):
    return rms
 
 def main():
-   try:
-      import tinypico
-      tinypico.set_dotstar_power(False)
-   except:
-      pass
+   if sys.implementation._machine.startswith("TinyPICO"):
+      try:
+         import tinypico
+         print("loaded: tinypico.py")
+         tinypico.set_dotstar_power(False)
+      except:
+         print("missing: tinypico.py")
+         pass
 
+   report_string = None
    count_state = restore_from_rtc_memory()
    if count_state is None:
-      count_state = {"wake_count": 0, "thold_count": 0}
+      count_state = {"wake_count": 0,
+                     "thold_count": 0,
+                     "rms_0_count": 0,
+                     "rms_history": []
+                     }
       write_rtc_memory(count_state)
 
    config = read_config()
@@ -47,6 +55,8 @@ def main():
    if count_state["wake_count"] == 0:
       print(f"{config=}")
       mem_status()
+
+   count_state['wake_count'] +=1
 
    if 'sampling' in config:
       tmp = config['sampling']['sample_minutes']
@@ -78,18 +88,29 @@ def main():
 
          if increment_thold_count:
             count_state['thold_count'] +=1
+            count_state['rms_history'].append(int(rms))
          elif count_state['thold_count'] > 0:
-            count_state['thold_count'] -=1
-            
-         count_state['wake_count'] +=1
-         write_rtc_memory(count_state)
+            count_state['thold_count'] -=1   
+      else:
+         count_state['rms_0_count'] +=1
+         if count_state['rms_0_count'] > 3:
+            report_string = f"Error: RMS was zero for 3 samples."
+            count_state['rms_0_count'] = 0
+            print(report_string)
    else:
-      print("No i2s config")
+      print("Quitting: Missing 'i2s_pins' in config json file")
+      sys.exit(0)
 
    if count_state['thold_count'] > config['sampling']['thold_count_limit']:
-      # report threshold exceeded, reset thold_count and set deep_sleep to report interval
       print(f"thold_count={count_state['thold_count']} > thold_limit={config['sampling']['thold_count_limit']}")
+      report_string = f"Noise RMS history = {count_state['rms_history']}; threshold={config['sampling']['threshold']}"
       count_state['thold_count'] = 0
+      count_state['rms_history'] = []
+      count_state['rms_0_count'] = 0
+
+   write_rtc_memory(count_state)
+
+   if report_string:
       tmp = config['sampling']['report_hours']
       if isinstance(tmp, float) or isinstance(tmp, int):
          deep_sleep_seconds = int(tmp*3600)
@@ -106,19 +127,20 @@ def main():
 
       mem_status() #free up memory (the audio buffer) for urequest
 
-      if station.isconnected() and "twilio" in config:
+      if "twilio" in config:
          url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
-         msg = "test-1"
          response = requests.post(
             url, 
-            data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={msg}",
+            data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={report_string}",
             auth=(config['twilio']['sid'], config['twilio']['token']),
             headers={'Content-Type': 'application/x-www-form-urlencoded'}
          )
          print(f"sms response: code={response.status_code}; text={response.text}")
          response.close()
+      else:
+         print("no twilio config when trying to report")
 
-      if station.isconnected() and "ftp" in config:
+      if "ftp" in config:
          host = config['ftp']['host']
          ftp = setup_ftp(host, config['ftp']['user'], config['ftp']['password'])
          if ftp is None:
@@ -127,11 +149,6 @@ def main():
             battery_voltage = get_bat_volt_int()
             send_battery_voltage(host,battery_voltage)
             ftp.quit()
-         # try:
-         #    ftp.cwd('epaper')
-         # except Exception as e:
-         #    print(f"{e} on cwd to epaper")
-         #    my_deep_sleep(config['sleep'])
       else:
          print("no ftp config")
 
