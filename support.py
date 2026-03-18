@@ -1,10 +1,7 @@
 import network, machine
-from ftplib import FTP
 import ujson as json
 from time import sleep
 import gc
-# print(sys.implementation._machine)
-# import tinypico
 
 def setup_station(ssid, password):
    sta_if = network.WLAN(network.STA_IF)
@@ -25,6 +22,10 @@ def setup_station(ssid, password):
    return sta_if
 
 def setup_ftp(host, user, password):
+   try:
+      from ftplib import FTP
+   except:
+      return None
    try:
       ftp = FTP(host)
    except Exception as e:
