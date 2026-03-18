@@ -16,6 +16,13 @@
         "ssid": "ssid",
         "password": "pw"
     },
+    "twilio": {
+        "api": "https://api.twilio.com/2010-04-01/Accounts/_sid_/Messages.json",
+        "sid": "your_sid",
+        "token": "your_token",
+        "from": "%2B1YOUR_PHONE",
+        "to": "%2B1_TO_PHONE#"
+    },
     "ftp": {
         "host": "10.0.1.68",
         "user": "user",
