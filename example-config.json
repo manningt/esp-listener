@@ -1,8 +1,8 @@
 {
     "i2s_pins": {
         "sck": 25,
-        "sd": 26,
-        "wstrobe": 27,
+        "wstrobe": 26,
+        "sd": 27,
         "select": 14
     },
     "sampling": {
