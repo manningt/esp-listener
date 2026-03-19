@@ -5,8 +5,8 @@ import math
 import sys
 import requests
 
-# MIC_BUFFER_SIZE = (8000 * 2 * 3)
-MIC_BUFFER_SIZE = (8000 * 2)
+SAMPLE_SECONDS = 3
+MIC_BUFFER_SIZE = (8000 * 2 * SAMPLE_SECONDS)
 
 def get_rms(audio_in):
    mic_samples = bytearray(MIC_BUFFER_SIZE)
@@ -16,13 +16,14 @@ def get_rms(audio_in):
       rms = 0
    else:
       sum_squares = 0.0
-      num_samples = MIC_BUFFER_SIZE // 2
-      for i in range(0, MIC_BUFFER_SIZE, 2):
+      num_samples = len(mic_samples) // 2
+      for i in range(0, len(mic_samples), 2):
          sample = int.from_bytes(mic_samples[i:i+2], 'little')
          # Signed 16-bit
          if sample >= 32768:
             sample -= 65536
          sum_squares += sample * float(sample)
+      print(f"{sum_squares=} {num_samples=}")
       rms = math.sqrt(sum_squares / num_samples)
    return rms
 
@@ -71,11 +72,17 @@ def main():
 
    if 'i2s_pins' in config:
       I2S_PORT_ID = 1
-      audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, \
-         sck=config['i2s_pins']['sck'], sd=config['i2s_pins']['sd'], ws=config['i2s_pins']['wstrobe'], \
-         bits=16, format=I2S.MONO, rate=8000, ibuf=MIC_BUFFER_SIZE)
+      # the pin direction is not specified; the I2S function probably does a Pin.reinit()
+      audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, format=I2S.MONO, bits=16, rate=8000, 
+         ibuf=MIC_BUFFER_SIZE,
+         sck=Pin(config['i2s_pins']['sck']),
+         ws=Pin(config['i2s_pins']['wstrobe']),
+         sd=Pin(config['i2s_pins']['sd']) \
+         )
+      # the Left/Right select pin must be low; maybe because of mono format
       select_pin = Pin(config['i2s_pins']['select'], Pin.OUT)
       select_pin.value(0)
+
       rms = get_rms(audio_in)
       print(f'RMS: {rms:.2f}')
       if rms > 0:
