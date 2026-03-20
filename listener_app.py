@@ -4,6 +4,7 @@ from machine import Pin, I2S
 import math
 import sys
 import requests
+from time import sleep
 
 SAMPLE_SECONDS = 3
 MIC_BUFFER_SIZE = (8000 * 2 * SAMPLE_SECONDS)
@@ -23,7 +24,7 @@ def get_rms(audio_in):
          if sample >= 32768:
             sample -= 65536
          sum_squares += sample * float(sample)
-      print(f"{sum_squares=} {num_samples=}")
+      # print(f"{sum_squares=} {num_samples=}")
       rms = math.sqrt(sum_squares / num_samples)
    return rms
 
@@ -31,7 +32,7 @@ def main():
    if sys.implementation._machine.startswith("TinyPICO"):
       try:
          import tinypico
-         print("loaded: tinypico.py")
+         # print("loaded: tinypico.py")
          tinypico.set_dotstar_power(False)
       except:
          print("missing: tinypico.py")
@@ -82,7 +83,8 @@ def main():
       # the Left/Right select pin must be low; maybe because of mono format
       select_pin = Pin(config['i2s_pins']['select'], Pin.OUT)
       select_pin.value(0)
-
+      
+      sleep(1)
       rms = get_rms(audio_in)
       print(f'RMS: {rms:.2f}')
       if rms > 0:
@@ -133,6 +135,11 @@ def main():
          print("No wifi config")
 
       mem_status() #free up memory (the audio buffer) for urequest
+
+      # filename = f"sample-{count_state["wake_count"]}.bin"
+      # with open(filename, 'wb') as f:
+      #    f.write(mic_samples)
+      #    print(f"wrote {filename}")
 
       if "twilio" in config:
          url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
