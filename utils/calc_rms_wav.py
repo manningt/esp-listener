@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import wave
 import struct
 import argparse
@@ -44,7 +46,6 @@ def to_dbfs(rms):
     if rms <= 0:
         return float("-inf")
     return 20.0 * math.log10(rms)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Calculate RMS of a WAV file.")

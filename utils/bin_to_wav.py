@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 
 import wave
 import argparse
@@ -31,7 +31,6 @@ def convert_bin_to_wav(input_file, output_file, sample_rate, channels, sample_wi
         sys.exit(1)
 
 def main():
-
     parser = argparse.ArgumentParser(description="Convert raw binary audio file to WAV.")
     parser.add_argument("input_file", help="Path to the input binary file")
     parser.add_argument("output_file", nargs='?', help="Path to the output WAV file (optional, defaults to input filename with .wav)")
