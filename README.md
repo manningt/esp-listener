@@ -38,15 +38,22 @@ The listener_app reads a config file; refer to the example-config.json file incl
     * "sample_minutes": determines the interval between samples.  Can be floating point in order to specify seconds, but would normally be set to 5 or 10 minutes.  For faster detection times, set to a lower number. 
     * "report_hours": once the threshold limit count is exceeded, sampling will _not_ continue for this duration.
 
-
 # twilio
-[twilio](https://www.twilio.com/en-us/blog/developers/tutorials/integrations/sms-doorbell-micropython-twilio) provides a large set of services; one of them is an API to send a text message.  The link to twilio provided the example code somewhat followed by the code in listener_app. 
+[twilio](twilio.com/en-us/blog/developers/tutorials/integrations/sms-doorbell-micropython-twilio) provides a large set of services; one of them is an API to send a text message.  The link to twilio provided the example code somewhat followed by the code in listener_app. 
 
 # ftp
 An FTP server, running on linux computer, maintains a log file which contains client login attempts.  A program can run on the FTP server to watch the log and perform some action based on the client's attempt.  For example a user ID that contains data on an upweller crossing used to trigger sending a message.  The FTP code in listener_app.py was used in a different project and could be used for this purpose.
 
+# background information
+Old ESP development boards will most likely not have enough RAM to run micropython with a 3 second audio buffer plus do the http request.  For example, ```>>> gc.mem_free()``` yielded 164784 bytes.  I used an 6 year old version of [TinyPICO](tinypico.com) which had 4182848 bytes free.  The TinyPICO has the feature of being LiPO battery operated (charger, regulator and connector) as well as an ADC pin to read the battery voltage.  A TinyPICO version of micropython is available which includes a module [tinypico.py](github.com/tinypico/tinypico-micropython/tree/master/tinypico-helper) containing defines and functions to read the battery and turn off the LED.  On the [micropython download](micropython.org/download/) page, search for tinypico (there are other tiny ESP32 products).
+
+I2S reference materials:
+* [class I2S](docs.micropython.org/en/latest/library/machine.I2S.html)
+* [I2S example](github.com/miketeachman/micropython-i2s-examples/blob/master/examples/record_mic_to_sdcard_uasyncio.py)
+
+
 # listener_simple:
-Minimal code to take an audio sample and save it to flash in a binary format.  It is meant to be run manually using [rshell](https://github.com/dhylands/rshell/blob/master/README.rst):
+Minimal code to take an audio sample and save it to flash in a binary format.  It is meant to be run manually using [rshell](github.com/dhylands/rshell/blob/master/README.rst):
 ```
 % rshell
 > cp listener_simple.py /pyboard
