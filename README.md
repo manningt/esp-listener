@@ -44,6 +44,14 @@ The listener_app reads a config file; refer to the example-config.json file incl
 # ftp
 An FTP server, running on linux computer, maintains a log file which contains client login attempts.  A program can run on the FTP server to watch the log and perform some action based on the client's attempt.  For example a user ID that contains data on an upweller crossing used to trigger sending a message.  The FTP code in listener_app.py was used in a different project and could be used for this purpose.
 
+# notes on the python code and the ESP
+* main.py just calls listener_app.main.  That way if an exception happens in the listener_app, then it goes to the repl prompt after printing out the exception.  Also, renaming main.py to something else is a way of not entering the continous deep_sleep loop when debugging.
+* the ESP and 8K of RAM (rtc_memory) that is preserved when in deep_sleep.  It is used to store state information from one wake session to the next.  If what is read from the memory is not JSON, a default state is stored in rtc_memory.
+
+# features to possibly add:
+* reporting low battery levels
+* storing a wav file for the samples that are above/below the threshold.  The issue is how to send them.  twilio does offer MMS in addition to SMS.
+
 # background information
 Old ESP development boards will most likely not have enough RAM to run micropython with a 3 second audio buffer plus do the http request.  For example, ```>>> gc.mem_free()``` yielded 164784 bytes.  I used an 6 year old version of [TinyPICO](tinypico.com) which had 4182848 bytes free.  The TinyPICO has the feature of being LiPO battery operated (charger, regulator and connector) as well as an ADC pin to read the battery voltage.  A TinyPICO version of micropython is available which includes a module [tinypico.py](github.com/tinypico/tinypico-micropython/tree/master/tinypico-helper) containing defines and functions to read the battery and turn off the LED.  On the [micropython download](micropython.org/download/) page, search for tinypico (there are other tiny ESP32 products).
 
