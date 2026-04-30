@@ -6,7 +6,13 @@ This set of micropython modules:
 * wakes up from deep_sleep to get an audio sample, calculates the RMS and compares it to a threshold
 * counts the number of times the sample is above or below the threshold
 * if above/below the threshold for N times:
-    * it will send a message using a TBD method (twilio SMS if wifi is available)
+    * it will send a message using a TBD method:
+        * the twilio.com service can be used to send an SMS if internet via Wifi is available
+            * this has been tested
+        * Using FTP (kind of kludgy, but it works)
+            * the ESP client does an FTP login with the userID being the message content
+            * a process on the FTP server watches for login attempts and extras the information
+            * this method was used on another project, but hasn't been tested here
     * the message is currently: Noise RMS history = [640, 614, 587, 534]; threshold=500
     * resets the number of threshold crossings and RMS history
     * sets the next deep_sleep duration equal to the configured 'report_hours'
