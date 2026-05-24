@@ -1,5 +1,6 @@
 from support import write_rtc_memory, restore_from_rtc_memory, \
-   read_config, my_deep_sleep, setup_station, setup_ftp, mem_status
+   read_config, my_deep_sleep, setup_station, setup_ftp, mem_status, \
+   get_bat_volt_int, send_battery_voltage
 from machine import Pin, I2S
 import math
 import sys
@@ -134,12 +135,8 @@ def main():
       else:
          print("No wifi config")
 
+      audio_in.deinit()
       mem_status() #free up memory (the audio buffer) for urequest
-
-      # filename = f"sample-{count_state["wake_count"]}.bin"
-      # with open(filename, 'wb') as f:
-      #    f.write(mic_samples)
-      #    print(f"wrote {filename}")
 
       if "twilio" in config:
          url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
