@@ -25,11 +25,14 @@ def calculate_rms(wav_file_path, offset=0):
         frames = wav_file.readframes(n_frames)
         if len(frames) == 0:
             print("empty frames")
-            return 0.0
+            return 0.0, 0.0
 
         # for unpack: <h is little-endian 16-bit signed int
         fmt = f'{len(frames)//2}h'
         samples = list(struct.unpack("<" + fmt, frames))
+        if len(samples) <= offset:
+            print("Error: offset >= number of samples")
+            return 0.0, 0.0
         sum_sq = 0.0
         normalized_sum_sq = 0.0
  
@@ -56,6 +59,6 @@ if __name__ == "__main__":
     input_path = args.input_file
 
     rms_value, normalized_rms_value = calculate_rms(input_path, offset=0)
-    dbfs = to_dbfs(rms_value)
-    dbfs = to_dbfs(normalized_rms_value)
-    print(f'The RMS value of the audio file is: linear: {rms_value:.1f}, normalized: {normalized_rms_value:.3f}, dbfs: {dbfs:.3f}')
+    dbfs_raw = to_dbfs(rms_value)
+    dbfs_norm = to_dbfs(normalized_rms_value)
+    print(f'The RMS value of the audio file is: linear: {rms_value:.1f}, normalized: {normalized_rms_value:.3f}, dbfs_raw: {dbfs_raw:.3f}, dbfs_norm: {dbfs_norm:.3f}')

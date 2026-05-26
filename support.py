@@ -64,13 +64,13 @@ def read_config(filename="config.json"):
       print(f"Error loading {filename}: {e}")
    return config
 
-def write_rtc_memory(state_dict, rtc=machine.RTC()):
-   rtc.memory(bytearray(json.dumps(state_dict).encode()))
+def write_rtc_memory(state_dict):
+   machine.RTC().memory(bytearray(json.dumps(state_dict).encode()))
 
-def restore_from_rtc_memory(rtc=machine.RTC()):
+def restore_from_rtc_memory():
    tmp = None
    try:
-      tmp = json.loads(rtc.memory().decode())
+      tmp = json.loads(machine.RTC().memory().decode())
       print(f"RTC.memory={tmp}")
       if type(tmp) is not dict:
             print(f"Warning (restore_state): RTC.memory={tmp} is not a dictionary")
@@ -82,7 +82,7 @@ def restore_from_rtc_memory(rtc=machine.RTC()):
 def get_bat_volt_int():
    BAT_VOLTAGE_PIN = const(35) # refer to tinypico.py definitions
    VOLTAGE_DIVIDER = 11 # 4096 max value divided by 370 reference voltage
-   adc = machine.ADC(Machine.Pin(BAT_VOLTAGE_PIN))
+   adc = machine.ADC(machine.Pin(BAT_VOLTAGE_PIN))
    raw_adc_value = adc.read()
    return int(raw_adc_value / VOLTAGE_DIVIDER)
 
@@ -92,15 +92,14 @@ def mem_status():
    mem_free = gc.mem_free()
    print(f"Mem bytes Free={mem_free} + Alloc={mem_stats} >> Total={mem_stats + mem_free}")
 
-'''
-def send_battery_voltage(host,voltage):
+def send_battery_voltage(host, voltage):
    # does a login attempt with a username equal to the battery voltage
    # which is recorded in /etc/log/vsftpd.log as a failed login attempt
    user = f"V{voltage}"
    try:
+      from ftplib import FTP
       ftp = FTP(host)
-      ftp.login(user,"bogus_pw")
+      ftp.login(user, "bogus_pw")
       ftp.quit()
    except Exception as e:
       print(f"send_battery_voltage: {e}")
-'''
