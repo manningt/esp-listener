@@ -69,11 +69,13 @@ I2S reference materials:
 # listener_simple:
 Minimal code to take an audio sample and save it to flash in a binary format.  It is meant to be run manually using [rshell](github.com/dhylands/rshell/blob/master/README.rst):
 ```
+% cd <path>/esp-listener
 % rshell
 > cp listener_simple.py /pyboard
 > repl
 >>> import listener_simple
+>>> listener_simple.sample()
  after the code runs hit CTRL-X to get from repl back to rshell
-> cp /pyboard/output.bin .
+> cp /pyboard/output.bin samples/lastest_output.bin
 ```
 The script runs after typing import.  After it runs, the binary format output file can be copied back the host computer.  In the utils directory, the script *bin_to_wav.py* can be run to convert the output file format and then *calc_rms_wav.py* can be run.
