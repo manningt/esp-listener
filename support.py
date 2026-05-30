@@ -92,14 +92,13 @@ def mem_status():
    mem_free = gc.mem_free()
    print(f"Mem bytes Free={mem_free} + Alloc={mem_stats} >> Total={mem_stats + mem_free}")
 
-def send_battery_voltage(host, voltage):
-   # does a login attempt with a username equal to the battery voltage
+def ftp_bogus_login_msg(host, message):
+   # does a login attempt with a username equal to the message
    # which is recorded in /etc/log/vsftpd.log as a failed login attempt
-   user = f"V{voltage}"
    try:
       from ftplib import FTP
       ftp = FTP(host)
-      ftp.login(user, "bogus_pw")
+      ftp.login(message, "bogus_pw")
       ftp.quit()
    except Exception as e:
-      print(f"send_battery_voltage: {e}")
+      print(f"ftp_bogus_login_msg: {e}")
