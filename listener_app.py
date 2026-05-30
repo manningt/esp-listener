@@ -1,6 +1,6 @@
 from support import write_rtc_memory, restore_from_rtc_memory, \
    read_config, my_deep_sleep, setup_station, setup_ftp, mem_status, \
-   get_bat_volt_int, send_battery_voltage
+   get_bat_volt_int, ftp_bogus_login_msg
 from machine import Pin, I2S
 import math
 import sys
@@ -58,7 +58,32 @@ def main():
    if count_state["wake_count"] == 0:
       print(f"{config=}")
       mem_status()
+      # verify WiFi is working by sending battery voltage & WiFi strength
+      station = None
+      if "wifi" in config:
+         station = setup_station(config['wifi']['ssid'], config['wifi']['password'])
+      else:
+         print("No wifi config")
+      if station is None:
+         print("WiFi not connecting")
+      elif "twilio" in config:
+         rssi = station.status('rssi')
+         battery_voltage = get_bat_volt_int()
+         report_string = f'powered-up: batt_voltage={battery_voltage} rssi={rssi}'
+         print(report_string)
+         url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
+         response = requests.post(
+            url, 
+            data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={report_string}",
+            auth=(config['twilio']['sid'], config['twilio']['token']),
+            headers={'Content-Type': 'application/x-www-form-urlencoded'}
+         )
+         print(f"sms response: code={response.status_code}; text={response.text}")
+         response.close()
+      else:
+         print("no twilio config when trying to report")
 
+   report_string = None # clear to prevent 2nd message on powerup
    count_state['wake_count'] +=1
 
    if 'sampling' in config:
@@ -88,7 +113,8 @@ def main():
       sleep(1)
       rms = get_rms(audio_in)
       print(f'RMS: {rms:.2f}')
-      if rms > 0:
+      # throw out first sample
+      if rms > 0 and count_state['wake_count'] > 1:
          increment_thold_count = False
          if config['sampling']['below_above'] == 1:
             if rms > config['sampling']['threshold']:
@@ -111,6 +137,7 @@ def main():
       print("Quitting: Missing 'i2s_pins' in config json file")
       sys.exit(0)
 
+   rms_history_copy = count_state['rms_history']
    if count_state['thold_count'] > config['sampling']['thold_count_limit']:
       print(f"thold_count={count_state['thold_count']} > thold_limit={config['sampling']['thold_count_limit']}")
       report_string = f"Noise RMS history = {count_state['rms_history']}; threshold={config['sampling']['threshold']}"
@@ -152,14 +179,8 @@ def main():
          print("no twilio config when trying to report")
 
       if "ftp" in config:
-         host = config['ftp']['host']
-         ftp = setup_ftp(host, config['ftp']['user'], config['ftp']['password'])
-         if ftp is None:
-            print(f"FTP setup to {host} failed")
-         else:
-            battery_voltage = get_bat_volt_int()
-            send_battery_voltage(host,battery_voltage)
-            ftp.quit()
+         message = f"{rms_history_copy};thold={config['sampling']['threshold']}"
+         ftp_bogus_login_msg(config['ftp']['host'], message)
       else:
          print("no ftp config")
 
