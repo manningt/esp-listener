@@ -137,10 +137,9 @@ def main():
       print("Quitting: Missing 'i2s_pins' in config json file")
       sys.exit(0)
 
-   rms_history_copy = count_state['rms_history']
    if count_state['thold_count'] > config['sampling']['thold_count_limit']:
-      print(f"thold_count={count_state['thold_count']} > thold_limit={config['sampling']['thold_count_limit']}")
-      report_string = f"Noise RMS history = {count_state['rms_history']}; threshold={config['sampling']['threshold']}"
+      report_string = f"RMS_history={count_state['rms_history']};threshold={config['sampling']['threshold']}"
+      print(report_string)
       count_state['thold_count'] = 0
       count_state['rms_history'] = []
       count_state['rms_0_count'] = 0
@@ -160,28 +159,33 @@ def main():
          if station is None:
             print("WiFi not connecting")
       else:
+         station = None
          print("No wifi config")
 
       audio_in.deinit()
       mem_status() #free up memory (the audio buffer) for urequest
 
-      if "twilio" in config:
-         url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
-         response = requests.post(
-            url, 
-            data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={report_string}",
-            auth=(config['twilio']['sid'], config['twilio']['token']),
-            headers={'Content-Type': 'application/x-www-form-urlencoded'}
-         )
-         print(f"sms response: code={response.status_code}; text={response.text}")
-         response.close()
-      else:
-         print("no twilio config when trying to report")
+      if station:
+         rssi = station.status('rssi')
+         battery_voltage = get_bat_volt_int()
+         report_string = f"{report_string};rssi={rssi};batt={battery_voltage}V"
 
-      if "ftp" in config:
-         message = f"{rms_history_copy};thold={config['sampling']['threshold']}"
-         ftp_bogus_login_msg(config['ftp']['host'], message)
-      else:
-         print("no ftp config")
+         if "twilio" in config:
+            url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
+            response = requests.post(
+               url, 
+               data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={report_string}",
+               auth=(config['twilio']['sid'], config['twilio']['token']),
+               headers={'Content-Type': 'application/x-www-form-urlencoded'}
+            )
+            print(f"sms response: code={response.status_code}; text={response.text}")
+            response.close()
+         else:
+            print("no twilio config when trying to report")
+
+         if "ftp" in config:
+            ftp_bogus_login_msg(config['ftp']['host'], report_string)
+         else:
+            print("no ftp config")
 
    my_deep_sleep(deep_sleep_seconds)
