@@ -54,35 +54,6 @@ def main():
       print("No config; calling deep sleep")
       my_deep_sleep(15)
 
-   # print debug info on first wake:
-   if count_state["wake_count"] == 0:
-      print(f"{config=}")
-      mem_status()
-      # verify WiFi is working by sending battery voltage & WiFi strength
-      station = None
-      if "wifi" in config:
-         station = setup_station(config['wifi']['ssid'], config['wifi']['password'])
-      else:
-         print("No wifi config")
-      if station is None:
-         print("WiFi not connecting")
-      elif "twilio" in config:
-         rssi = station.status('rssi')
-         battery_voltage = get_bat_volt_int()
-         report_string = f'powered-up: batt_voltage={battery_voltage} rssi={rssi}'
-         print(report_string)
-         url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
-         response = requests.post(
-            url, 
-            data=f"To={config['twilio']['to']}&From={config['twilio']['from']}&Body={report_string}",
-            auth=(config['twilio']['sid'], config['twilio']['token']),
-            headers={'Content-Type': 'application/x-www-form-urlencoded'}
-         )
-         print(f"sms response: code={response.status_code}; text={response.text}")
-         response.close()
-      else:
-         print("no twilio config when trying to report")
-
    report_string = None # clear to prevent 2nd message on powerup
    count_state['wake_count'] +=1
 
@@ -97,7 +68,10 @@ def main():
       print("Quitting: Missing 'sampling' in config json file")
       sys.exit(0)
 
-   if 'i2s_pins' in config:
+   if 'i2s_pins' not in config:
+      print("Quitting: Missing 'i2s_pins' in config json file")
+      sys.exit(0)
+   else:
       I2S_PORT_ID = 1
       # the pin direction is not specified; the I2S function probably does a Pin.reinit()
       audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, format=I2S.MONO, bits=16, rate=8000, 
@@ -114,28 +88,26 @@ def main():
       rms = get_rms(audio_in)
       print(f'RMS: {rms:.2f}')
       # throw out first sample
-      if rms > 0 and count_state['wake_count'] > 1:
-         increment_thold_count = False
-         if config['sampling']['below_above'] == 1:
-            if rms > config['sampling']['threshold']:
+      if count_state['wake_count'] > 1:
+         if rms > 0:
+            increment_thold_count = False
+            if config['sampling']['below_above'] == 1:
+               if rms > config['sampling']['threshold']:
+                  increment_thold_count = True
+            elif rms < config['sampling']['threshold']:
                increment_thold_count = True
-         elif rms < config['sampling']['threshold']:
-            increment_thold_count = True
 
-         if increment_thold_count:
-            count_state['thold_count'] +=1
-            count_state['rms_history'].append(int(rms))
-         elif count_state['thold_count'] > 0:
-            count_state['thold_count'] -=1   
-      else:
-         count_state['rms_0_count'] +=1
-         if count_state['rms_0_count'] > 3:
-            report_string = f"Error: RMS was zero for 3 samples."
-            count_state['rms_0_count'] = 0
-            print(report_string)
-   else:
-      print("Quitting: Missing 'i2s_pins' in config json file")
-      sys.exit(0)
+            if increment_thold_count:
+               count_state['thold_count'] +=1
+               count_state['rms_history'].append(int(rms))
+            elif count_state['thold_count'] > 0:
+               count_state['thold_count'] -=1   
+         else:
+            count_state['rms_0_count'] +=1
+            if count_state['rms_0_count'] > 3:
+               report_string = f"Error: RMS was zero for 3 samples."
+               count_state['rms_0_count'] = 0
+               print(report_string)
 
    if count_state['thold_count'] > config['sampling']['thold_count_limit']:
       report_string = f"RMS_history={count_state['rms_history']};threshold={config['sampling']['threshold']}"
@@ -146,13 +118,21 @@ def main():
 
    write_rtc_memory(count_state)
 
+   # print debug info on first wake:
+   if count_state["wake_count"] == 1:
+      print(f"{config=}")
+      mem_status()
+      report_string = f"threshold={config['sampling']['threshold']};below_above={config['sampling']['below_above']}"
+
    if report_string:
-      tmp = config['sampling']['report_hours']
-      if isinstance(tmp, float) or isinstance(tmp, int):
-         deep_sleep_seconds = int(tmp*3600)
-      else:
-         print(f"Warning: invalid report_hours={tmp}; using 4 hours")
-         deep_sleep_seconds = 14400
+      # don't use report_hours on the first wake cycle - just send a message
+      if count_state["wake_count"] > 1:
+         tmp = config['sampling']['report_hours']
+         if isinstance(tmp, float) or isinstance(tmp, int):
+            deep_sleep_seconds = int(tmp*3600)
+         else:
+            print(f"Warning: invalid report_hours={tmp}; using 4 hours")
+            deep_sleep_seconds = 14400
 
       if "wifi" in config:
          station = setup_station(config['wifi']['ssid'], config['wifi']['password'])
