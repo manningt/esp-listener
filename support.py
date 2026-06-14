@@ -6,15 +6,24 @@ import gc
 def setup_station(ssid, password):
    sta_if = network.WLAN(network.STA_IF)
    sta_if.active(True)
-   sta_if.connect(ssid, password)
-   for _ in range(10):
-      sleep(1)
+
+   MAX_RETRIES = 11
+   attempt = 1
+   while attempt <= MAX_RETRIES:
       if sta_if.isconnected():
          break
-      else:
-         print(".  ", end='')
+      sta_if.connect(ssid, password)
+      print(f"  {attempt}: ", end='')
+      for _ in range(10):
+         sleep(1)
+         if sta_if.isconnected():
+            break
+         else:
+            print(".  ", end='')
+      attempt += 1
+
    if sta_if.isconnected():
-      print('  my IP:', sta_if.ifconfig()[0])
+      print(f"  my IP={sta_if.ifconfig()[0]} after {attempt} attempts")
    else:
       print("Failed to connect to WiFi")
       sta_if.active(False)
