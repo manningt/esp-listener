@@ -45,17 +45,18 @@ def main():
       count_state = {"wake_count": 0,
                      "thold_count": 0,
                      "rms_0_count": 0,
-                     "rms_history": []
+                     "rms_history": [],
+                     "report_re_attempts": 0,
+                     "wifi_history": []
                      }
-      write_rtc_memory(count_state)
-
-   config = read_config()
-   if config is None:
-      print("No config; calling deep sleep")
-      my_deep_sleep(15)
 
    report_string = None # clear to prevent 2nd message on powerup
    count_state['wake_count'] +=1
+
+   config = read_config()
+   if config is None:
+      print("No config; quitting")
+      sys.exit(0)
 
    if 'sampling' in config:
       tmp = config['sampling']['sample_minutes']
@@ -68,55 +69,57 @@ def main():
       print("Quitting: Missing 'sampling' in config json file")
       sys.exit(0)
 
-   if 'i2s_pins' not in config:
-      print("Quitting: Missing 'i2s_pins' in config json file")
-      sys.exit(0)
-   else:
-      I2S_PORT_ID = 1
-      # the pin direction is not specified; the I2S function probably does a Pin.reinit()
-      audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, format=I2S.MONO, bits=16, rate=8000, 
-         ibuf=MIC_BUFFER_SIZE,
-         sck=Pin(config['i2s_pins']['sck']),
-         ws=Pin(config['i2s_pins']['wstrobe']),
-         sd=Pin(config['i2s_pins']['sd']) \
-         )
-      # the Left/Right select pin must be low; maybe because of mono format
-      select_pin = Pin(config['i2s_pins']['select'], Pin.OUT)
-      select_pin.value(0)
-      
-      sleep(1)
-      rms = get_rms(audio_in)
-      print(f'RMS: {rms:.2f}')
-      # throw out first sample
-      if count_state['wake_count'] > 1:
-         if rms > 0:
-            increment_thold_count = False
-            if config['sampling']['below_above'] == 1:
-               if rms > config['sampling']['threshold']:
-                  increment_thold_count = True
-            elif rms < config['sampling']['threshold']:
-               increment_thold_count = True
-
-            if increment_thold_count:
-               count_state['thold_count'] +=1
-               count_state['rms_history'].append(int(rms))
-            elif count_state['thold_count'] > 0:
-               count_state['thold_count'] -=1   
-         else:
-            count_state['rms_0_count'] +=1
-            if count_state['rms_0_count'] > 3:
-               report_string = f"Error: RMS was zero for 3 samples."
-               count_state['rms_0_count'] = 0
-               print(report_string)
-
-   if count_state['thold_count'] > config['sampling']['thold_count_limit']:
+   if count_state['report_re_attempts'] > 0:
+      # last attempt to report didn't work; dont sample, and retry to send (will retry forever)
+      print(f"Report reattempt # {count_state['report_re_attempts']}")
+      # set report string as it would be by a threshold crossing
       report_string = f"RMS_history={count_state['rms_history']};threshold={config['sampling']['threshold']}"
-      print(report_string)
-      count_state['thold_count'] = 0
-      count_state['rms_history'] = []
-      count_state['rms_0_count'] = 0
+      deep_sleep_seconds = 300 #retry in 5 minutes
+   else:
+      if 'i2s_pins' not in config:
+         print("Quitting: Missing 'i2s_pins' in config json file")
+         sys.exit(0)
+      else:
+         I2S_PORT_ID = 1
+         # the pin direction is not specified; the I2S function probably does a Pin.reinit()
+         audio_in = I2S(I2S_PORT_ID, mode=I2S.RX, format=I2S.MONO, bits=16, rate=8000, 
+            ibuf=MIC_BUFFER_SIZE,
+            sck=Pin(config['i2s_pins']['sck']),
+            ws=Pin(config['i2s_pins']['wstrobe']),
+            sd=Pin(config['i2s_pins']['sd']) \
+            )
+         # the Left/Right select pin must be low; maybe because of mono format
+         select_pin = Pin(config['i2s_pins']['select'], Pin.OUT)
+         select_pin.value(0)
+         
+         sleep(1)
+         rms = get_rms(audio_in)
+         print(f'RMS: {rms:.2f}')
+         # throw out first sample
+         if count_state['wake_count'] > 1:
+            if rms > 0:
+               increment_thold_count = False
+               if config['sampling']['below_above'] == 1:
+                  if rms > config['sampling']['threshold']:
+                     increment_thold_count = True
+               elif rms < config['sampling']['threshold']:
+                  increment_thold_count = True
 
-   write_rtc_memory(count_state)
+               if increment_thold_count:
+                  count_state['thold_count'] +=1
+                  count_state['rms_history'].append(int(rms))
+               elif count_state['thold_count'] > 0:
+                  count_state['thold_count'] -=1   
+            else:
+               count_state['rms_0_count'] +=1
+               if count_state['rms_0_count'] > 3:
+                  report_string = f"Error: RMS was zero for 3 samples."
+                  count_state['rms_0_count'] = 0
+                  print(report_string)
+
+      if count_state['thold_count'] > config['sampling']['thold_count_limit']:
+         report_string = f"RMS_history={count_state['rms_history']};threshold={config['sampling']['threshold']}"
+         print(report_string)
 
    # print debug info on first wake:
    if count_state["wake_count"] == 1:
@@ -125,6 +128,18 @@ def main():
       report_string = f"threshold={config['sampling']['threshold']};below_above={config['sampling']['below_above']}"
 
    if report_string:
+      if "wifi" in config:
+         station, attempts = setup_station(config['wifi']['ssid'], config['wifi']['password'])
+         if station is None:
+            print("WiFi not connecting")
+            count_state['report_re_attempts'] += 1
+         if len(count_state['wifi_history']) > 2:
+            count_state['wifi_history'].pop()
+         count_state['wifi_history'].insert(0,attempts)
+      else:
+         station = None
+         print("No wifi config")
+
       # don't use report_hours on the first wake cycle - just send a message
       if count_state["wake_count"] > 1:
          tmp = config['sampling']['report_hours']
@@ -134,22 +149,12 @@ def main():
             print(f"Warning: invalid report_hours={tmp}; using 4 hours")
             deep_sleep_seconds = 14400
 
-      if "wifi" in config:
-         station = setup_station(config['wifi']['ssid'], config['wifi']['password'])
-         if station is None:
-            print("WiFi not connecting")
-      else:
-         station = None
-         print("No wifi config")
-
-      audio_in.deinit()
       mem_status() #free up memory (the audio buffer) for urequest
 
       if station:
          rssi = station.status('rssi')
          battery_voltage = get_bat_volt_int()
-         report_string = f"{report_string};rssi={rssi};batt={battery_voltage}V"
-
+         report_string = f"{report_string};report_reattempts={count_state['report_re_attempts']};connect_retries={count_state['wifi_history']};rssi={rssi};batt={battery_voltage}V"
          if "twilio" in config:
             url = config['twilio']['api'].replace('_sid_',config['twilio']['sid'])
             response = requests.post(
@@ -168,4 +173,12 @@ def main():
          else:
             print("no ftp config")
 
+         #clear statistics after reporting
+         count_state['thold_count'] = 0
+         count_state['rms_history'] = []
+         count_state['rms_0_count'] = 0
+         count_state['report_re_attempts'] = 0
+
+   write_rtc_memory(count_state)
+   audio_in.deinit()
    my_deep_sleep(deep_sleep_seconds)

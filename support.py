@@ -28,7 +28,7 @@ def setup_station(ssid, password):
       print("Failed to connect to WiFi")
       sta_if.active(False)
       sta_if = None
-   return sta_if
+   return sta_if, attempt
 
 def setup_ftp(host, user, password):
    try:
