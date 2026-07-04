@@ -15,8 +15,8 @@ This set of micropython modules:
             * this method was used on another project, but hasn't been tested here
     * the message is currently: Noise RMS history = [640, 614, 587, 534]; threshold=500
     * resets the number of threshold crossings and RMS history
-    * sets the next deep_sleep duration equal to the configured 'report_hours'
-* goes back to deep_sleep for the configured time: either sample_minutes or report_hours
+    * sets the next deep_sleep duration equal to the configured 'restart_sampling_hours'
+* goes back to deep_sleep for the configured time: either sample_minutes or restart_sampling_hours
 
 # set up and run code on an ESP
 Connect to your ESP using [rshell](https://github.com/dhylands/rshell/blob/master/README.rst) and a USB cable.  Before the code is run, a config file should be written, the contents of the file are described in the next section.
@@ -42,7 +42,7 @@ The listener_app reads a config file; refer to the example-config.json file incl
     * "threshold": an RMS value to use for a threshold. An integer from 0 to any large value.
     * "thold_count_limit": the number of samples the RMS has to be above/below the threshold before sending a message.
     * "sample_minutes": determines the interval between samples.  Can be floating point in order to specify seconds, but would normally be set to 5 or 10 minutes.  For faster detection times, set to a lower number. 
-    * "report_hours": once the threshold limit count is exceeded, sampling will _not_ continue for this duration.
+    * "restart_sampling_hours": once the threshold limit count is exceeded, sampling will _not_ continue for this duration.
 
 # twilio
 [twilio](twilio.com/en-us/blog/developers/tutorials/integrations/sms-doorbell-micropython-twilio) provides a large set of services; one of them is an API to send a text message.  The link to twilio provided the example code somewhat followed by the code in listener_app. 

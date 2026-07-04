@@ -47,7 +47,9 @@ def main():
                      "rms_0_count": 0,
                      "rms_history": [],
                      "report_re_attempts": 0,
-                     "wifi_history": []
+                     "wifi_history": [],
+                     "periodic_report_minutes": 0,
+                     "reported_low_battery": 0
                      }
 
    report_string = None # clear to prevent 2nd message on powerup
@@ -56,6 +58,10 @@ def main():
    config = read_config()
    if config is None:
       print("No config; quitting")
+      sys.exit(0)
+
+   if 'periodic_reporting' not in config:
+      print("Quitting: Missing 'periodic_reporting' in config json file")
       sys.exit(0)
 
    if 'sampling' in config:
@@ -120,14 +126,33 @@ def main():
       if count_state['thold_count'] > config['sampling']['thold_count_limit']:
          report_string = f"RMS_history={count_state['rms_history']};threshold={config['sampling']['threshold']}"
          print(report_string)
+         tmp = config['sampling']['restart_sampling_hours']
+         if isinstance(tmp, float) or isinstance(tmp, int):
+            deep_sleep_seconds = int(tmp*3600)
+         else:
+            print(f"Warning: invalid restart_sampling_hours={tmp}; using 4 hours")
+            deep_sleep_seconds = 14400
 
    # print debug info on first wake:
    if count_state["wake_count"] == 1:
       print(f"{config=}")
       mem_status()
-      report_string = f"threshold={config['sampling']['threshold']};below_above={config['sampling']['below_above']}"
+      report_string = f"initialized: threshold={config['sampling']['threshold']};below_above={config['sampling']['below_above']}"
+
+   if report_string is None:
+      # check for sending periodic report (I'm alive message)
+      battery_voltage = get_bat_volt_int()
+      print(f'DEBUG: comparing {count_state['periodic_report_minutes']=} > {(config['periodic_reporting']['interval_days'] * 24*60)}')
+      status_string = f"batt={battery_voltage}V; wake_count={count_state['wake_count']}; sample_interval={config['sampling']['sample_minutes']} minutes"
+      if count_state['periodic_report_minutes'] > (config['periodic_reporting']['interval_days'] * 24*60):
+         report_string = "Still checking noise levels: " + status_string
+         
+      if battery_voltage < config['periodic_reporting']['battery_voltage_threshold'] and count_state['reported_low_battery'] == 0:
+         report_string = "Low battery warning: " + status_string
+         count_state['reported_low_battery'] = 1
 
    if report_string:
+      print(f'>>> reporting: {report_string}')
       if "wifi" in config:
          station, attempts = setup_station(config['wifi']['ssid'], config['wifi']['password'])
          if station is None:
@@ -139,15 +164,6 @@ def main():
       else:
          station = None
          print("No wifi config")
-
-      # don't use report_hours on the first wake cycle - just send a message
-      if count_state["wake_count"] > 1:
-         tmp = config['sampling']['report_hours']
-         if isinstance(tmp, float) or isinstance(tmp, int):
-            deep_sleep_seconds = int(tmp*3600)
-         else:
-            print(f"Warning: invalid report_hours={tmp}; using 4 hours")
-            deep_sleep_seconds = 14400
 
       mem_status() #free up memory (the audio buffer) for urequest
 
@@ -178,6 +194,12 @@ def main():
          count_state['rms_history'] = []
          count_state['rms_0_count'] = 0
          count_state['report_re_attempts'] = 0
+         count_state['periodic_report_minutes'] = 0
+   else:
+      deep_sleep_minutes = round(deep_sleep_seconds/60)
+      if deep_sleep_minutes == 0:
+         deep_sleep_minutes = 1 
+      count_state['periodic_report_minutes'] += deep_sleep_minutes
 
    write_rtc_memory(count_state)
    audio_in.deinit()

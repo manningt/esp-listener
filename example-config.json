@@ -10,7 +10,11 @@
         "threshold": 4000,
         "thold_count_limit": 3,
         "sample_minutes": 0.5,
-        "report_hours": 12
+        "restart_sampling_hours": 12
+    },
+    "periodic_reporting": {
+        "interval_days": 4,
+        "battery_voltage_threshold": 340
     },
     "wifi": {
         "ssid": "ssid",
