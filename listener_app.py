@@ -1,7 +1,7 @@
 from support import write_rtc_memory, restore_from_rtc_memory, \
-   read_config, my_deep_sleep, setup_station, setup_ftp, mem_status, \
+   read_config, my_deep_sleep, setup_station, mem_status, \
    get_bat_volt_int, ftp_bogus_login_msg
-from machine import Pin, I2S
+from machine import Pin, I2S # pyrefly: ignore [missing-import]
 import math
 import sys
 import requests
@@ -32,11 +32,21 @@ def get_rms(audio_in):
 def main():
    if sys.implementation._machine.startswith("TinyPICO"):
       try:
-         import tinypico
+         import tinypico # pyrefly: ignore [missing-import]
          # print("loaded: tinypico.py")
          tinypico.set_dotstar_power(False)
       except:
          print("missing: tinypico.py")
+         pass
+
+   if sys.implementation._machine.startswith("TinyS3"):
+      try:
+         from mp_tinys3d import set_antenna_external # pyrefly: ignore [missing-import]
+         # print("loaded: mp_tinys3d.py")
+         set_antenna_external()
+         #tinypico.set_dotstar_power(False)
+      except:
+         print("missing: mp_tinys3d.py")
          pass
 
    report_string = None

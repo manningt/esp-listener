@@ -1,5 +1,8 @@
-import network, machine
-import ujson as json
+import sys
+import network, machine # pyrefly: ignore [missing-import]
+import ujson as json # pyrefly: ignore [missing-import]
+from machine import Pin  # pyrefly: ignore [missing-import]
+from micropython import const # pyrefly: ignore [missing-import]
 from time import sleep
 import gc
 
@@ -9,21 +12,25 @@ def setup_station(ssid, password):
 
    MAX_RETRIES = 11
    attempt = 1
-   while attempt <= MAX_RETRIES:
-      if sta_if.isconnected():
-         break
-      sta_if.connect(ssid, password)
-      print(f"  {attempt}: ", end='')
-      for _ in range(10):
-         sleep(1)
+   try:
+      while attempt <= MAX_RETRIES:
          if sta_if.isconnected():
             break
-         else:
-            print(".  ", end='')
-      attempt += 1
+         sta_if.connect(ssid, password)
+         print(f"  {attempt}: ", end='')
+         for _ in range(10):
+            sleep(1)
+            if sta_if.isconnected():
+               break
+            else:
+               print(".  ", end='')
+         attempt += 1
+   except:
+      return None, attempt
 
    if sta_if.isconnected():
-      print(f"  my IP={sta_if.ifconfig()[0]} after {attempt} attempts")
+      rssi = sta_if.status('rssi')
+      print(f"  my IP={sta_if.ifconfig()[0]} after {attempt} attempts; rssi={rssi}")
    else:
       print("Failed to connect to WiFi")
       sta_if.active(False)
@@ -89,11 +96,25 @@ def restore_from_rtc_memory():
    return tmp
 
 def get_bat_volt_int():
-   BAT_VOLTAGE_PIN = const(35) # refer to tinypico.py definitions
-   VOLTAGE_DIVIDER = 11 # 4096 max value divided by 370 reference voltage
-   adc = machine.ADC(machine.Pin(BAT_VOLTAGE_PIN))
-   raw_adc_value = adc.read()
-   return int(raw_adc_value / VOLTAGE_DIVIDER)
+   bat_volt_int = 0
+   if sys.implementation._machine.startswith("TinyPICO"):
+      from tinypico import get_battery_voltage
+      # BAT_VOLTAGE_PIN = const(35) # refer to tinypico.py definitions
+      # VOLTAGE_DIVIDER = 11 # 4096 max value divided by 370 reference voltage
+      # adc = machine.ADC(machine.Pin(BAT_VOLTAGE_PIN))
+      # raw_adc_value = adc.read()
+      # bat_volt_int = int(raw_adc_value / VOLTAGE_DIVIDER)
+
+   if sys.implementation._machine.startswith("TinyS3"):
+      from mp_tinys3d import get_battery_voltage
+      
+   try:
+      bat_volts = get_battery_voltage()
+   except:
+      print("get_battery_voltage failed")
+      bat_volts = 0
+   bat_volt_int = int(bat_volts  *100)
+   return bat_volt_int
 
 def mem_status():
    gc.collect()
