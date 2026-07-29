@@ -1,12 +1,23 @@
-from machine import Pin, I2S
+'''
+captures a 3 second 8Khz sample from an i2s microphone and stores it in flash as a .bin file
+'''
+from machine import Pin, I2S # pyrefly: ignore [missing-import]
 import math
 from time import sleep
 
 # 2 bytes per sample, 8000 samples per second, 3 seconds
 MIC_BUFFER_SIZE = (8000 * 2 * 3)
-sck_pin = Pin(25) #             green in pair with yellow
+'''
+#TinyPico
+sck_pin = Pin(25) #           green in pair with yellow
 ws_pin = Pin(26)  # Word strobe  purple
-sd_pin = Pin(27)  #             yellow
+sd_pin = Pin(27)  # yellow
+'''
+#TinyS3; defaults https://docs.espressif.com/projects/esp-idf/en/v4.4/esp32s3/api-reference/peripherals/i2s.html
+# default sd pin is 18 (not 3)
+sck_pin = Pin(4) #  orange
+ws_pin = Pin(5)  # yellow
+sd_pin = Pin(3)  # brown 
 
 # the Left/Right select pin must be low; maybe because of mono format
 sel_pin = Pin(14, Pin.OUT) # Select green
