@@ -41,10 +41,11 @@ def main():
 
    if sys.implementation._machine.startswith("TinyS3"):
       try:
-         from mp_tinys3d import set_antenna_external # pyrefly: ignore [missing-import]
+         from mp_tinys3d import set_antenna_external, set_pixel_power, init_fuel_guage  # pyrefly: ignore [missing-import]
          # print("loaded: mp_tinys3d.py")
          set_antenna_external()
-         #tinypico.set_dotstar_power(False)
+         set_pixel_power(0)
+         init_fuel_guage()
       except:
          print("missing: mp_tinys3d.py")
          pass

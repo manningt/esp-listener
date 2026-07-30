@@ -1,8 +1,6 @@
 import sys
 import network, machine # pyrefly: ignore [missing-import]
 import ujson as json # pyrefly: ignore [missing-import]
-from machine import Pin  # pyrefly: ignore [missing-import]
-from micropython import const # pyrefly: ignore [missing-import]
 from time import sleep
 import gc
 
@@ -99,6 +97,10 @@ def get_bat_volt_int():
    bat_volt_int = 0
    if sys.implementation._machine.startswith("TinyPICO"):
       from tinypico import get_battery_voltage
+      
+      # old code to be deleted, if ever re-tested with TinyPICO
+      # from machine import Pin  # pyrefly: ignore [missing-import]
+      # from micropython import const # pyrefly: ignore [missing-import]
       # BAT_VOLTAGE_PIN = const(35) # refer to tinypico.py definitions
       # VOLTAGE_DIVIDER = 11 # 4096 max value divided by 370 reference voltage
       # adc = machine.ADC(machine.Pin(BAT_VOLTAGE_PIN))
