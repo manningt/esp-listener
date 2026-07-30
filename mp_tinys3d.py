@@ -74,8 +74,8 @@ def get_battery_voltage():
     try:
         max17048_vcell = i2c.readfrom_mem(MAX1704X_I2CADDR_DEFAULT, MAX1704X_VCELL_REG, 2)
         max17048_vcell_int = int.from_bytes(max17048_vcell)
-        print(f'max17048 OK; VCELL={max17048_vcell_int} times 78.125µV per cell')
-        return (max17048_vcell_int * .000000078125)
+        # print(f'max17048 OK; VCELL={max17048_vcell_int} times 78.125µV per cell')
+        return (max17048_vcell_int * .000078125)
     except Exception as e:
         print(f'i2c failed: exception: {e}')
         return 0
